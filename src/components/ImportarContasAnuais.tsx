@@ -27,7 +27,7 @@ export default function ImportarContasAnuais({ empresa, faturacao, onClose, onIm
   const supabase = createClient()
   const [etapa, setEtapa] = useState<Etapa>('upload')
   const [erro, setErro] = useState('')
-  const [ficheiro, setFicheiro] = useState<File | null>(null)
+  const [ficheiros, setFicheiros] = useState<File[]>([])
   const [ano, setAno] = useState(new Date().getFullYear() - 1)
   const [valores, setValores] = useState<Record<CampoAnual, number>>(vazio)
   const [observacoes, setObservacoes] = useState('')
@@ -42,12 +42,12 @@ export default function ImportarContasAnuais({ empresa, faturacao, onClose, onIm
   const mesesExistentes = faturacao.filter(f => f.ano === ano).length
 
   async function extrair() {
-    if (!ficheiro) return
+    if (ficheiros.length === 0) return
     setErro('')
     setEtapa('a_extrair')
     try {
       const fd = new FormData()
-      fd.append('file', ficheiro)
+      ficheiros.forEach(f => fd.append('file', f))
       fd.append('empresaId', empresa.id)
       const res = await fetch('/api/importar-pdf', { method: 'POST', body: fd })
       const json = await res.json().catch(() => ({ error: `Erro ${res.status}` }))
@@ -68,7 +68,7 @@ export default function ImportarContasAnuais({ empresa, faturacao, onClose, onIm
     try {
       // 1. Dados anuais
       const registo: DadosAnuaisInput & { empresa_id: string } = {
-        empresa_id: empresa.id, ano, ...valores, fonte: ficheiro?.name || 'PDF',
+        empresa_id: empresa.id, ano, ...valores, fonte: ficheiros.map(f => f.name).join(', ') || 'PDF',
       }
       const { data: da, error: e1 } = await supabase
         .from('dados_anuais').upsert(registo, { onConflict: 'empresa_id,ano' }).select().single()
@@ -154,15 +154,15 @@ export default function ImportarContasAnuais({ empresa, faturacao, onClose, onIm
         {(etapa === 'upload' || etapa === 'a_extrair') && (
           <div>
             <label style={{ display: 'block', border: '2px dashed var(--border)', borderRadius: 12, padding: 32, textAlign: 'center', cursor: 'pointer', background: 'var(--bg)' }}>
-              <input type="file" accept="application/pdf" style={{ display: 'none' }}
-                onChange={e => setFicheiro(e.target.files?.[0] || null)} />
+              <input type="file" accept="application/pdf" multiple style={{ display: 'none' }}
+                onChange={e => setFicheiros(Array.from(e.target.files || []))} />
               <div style={{ fontSize: 30 }}>📄</div>
-              <div style={{ color: 'var(--text)', fontWeight: 500, marginTop: 6 }}>{ficheiro ? ficheiro.name : 'Clica para escolher o PDF'}</div>
-              <div style={{ color: 'var(--faint)', fontSize: 12, marginTop: 4 }}>Máximo 4 MB</div>
+              <div style={{ color: 'var(--text)', fontWeight: 500, marginTop: 6 }}>{ficheiros.length > 0 ? ficheiros.map(f => f.name).join(' + ') : 'Clica para escolher os PDFs'}</div>
+              <div style={{ color: 'var(--faint)', fontSize: 12, marginTop: 4 }}>Podes escolher vários de uma vez (ex.: Balanço + Demonstração de Resultados) · máx. 4 MB no total</div>
             </label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <button onClick={onClose} style={btnSec}>Cancelar</button>
-              <button onClick={extrair} disabled={!ficheiro || etapa === 'a_extrair'} style={{ ...btnPri, opacity: !ficheiro || etapa === 'a_extrair' ? 0.6 : 1 }}>
+              <button onClick={extrair} disabled={ficheiros.length === 0 || etapa === 'a_extrair'} style={{ ...btnPri, opacity: ficheiros.length === 0 || etapa === 'a_extrair' ? 0.6 : 1 }}>
                 {etapa === 'a_extrair' ? '⏳ A analisar o documento…' : 'Extrair dados'}
               </button>
             </div>

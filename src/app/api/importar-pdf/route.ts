@@ -9,12 +9,12 @@ const client = criarClienteAnthropic()
 
 const MAX_BYTES = 4 * 1024 * 1024 // limite do corpo de pedido no Vercel (~4,5 MB)
 
-const INSTRUCOES = `Analisa este documento contabilístico de uma empresa portuguesa (IES, Balanço, Demonstração de Resultados ou balancete, possivelmente exportado do CentralGest) e extrai os valores do exercício mais recente que aparece no documento.
+const INSTRUCOES = `Analisa estes documentos contabilísticos (podem ser vários: por exemplo o Balanço num PDF e a Demonstração de Resultados noutro — combina-os) de uma empresa portuguesa (IES, Balanço, Demonstração de Resultados ou balancete, possivelmente exportado do CentralGest) e extrai os valores do exercício mais recente que aparece nos documentos.
 
 Regras:
 - Usa sempre os valores do período mais recente (coluna do ano N, não N-1).
 - Valores em euros. Gastos sempre como números positivos. Resultados e capital próprio podem ser negativos (prejuízo). Usa ponto como separador decimal.
-- Se um valor não existir no documento, devolve 0. Nunca inventes nem estimes.
+- Se um valor não existir em nenhum documento, devolve 0. Nunca inventes nem estimes.
 - "ebitda": usa o valor "Resultado antes de depreciações, gastos de financiamento e impostos" se existir.
 - "irc": "Imposto sobre o rendimento do período".
 - "divida_financeira": financiamentos obtidos (correntes + não correntes).
@@ -28,18 +28,23 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ error: 'Não autenticado' }, { status: 401 })
 
   const form = await req.formData()
-  const file = form.get('file')
+  const files = form.getAll('file').filter((f): f is File => f instanceof File)
   const empresaId = form.get('empresaId')
 
-  if (!(file instanceof File)) return Response.json({ error: 'Ficheiro em falta' }, { status: 400 })
-  if (file.type !== 'application/pdf') return Response.json({ error: 'O ficheiro tem de ser PDF' }, { status: 400 })
-  if (file.size > MAX_BYTES) return Response.json({ error: 'PDF demasiado grande (máx. 4 MB). Exporta só as páginas do balanço e da demonstração de resultados.' }, { status: 413 })
+  if (files.length === 0) return Response.json({ error: 'Ficheiro em falta' }, { status: 400 })
+  if (files.length > 5) return Response.json({ error: 'Máximo 5 PDFs de cada vez' }, { status: 400 })
+  if (files.some(f => f.type !== 'application/pdf')) return Response.json({ error: 'Os ficheiros têm de ser PDF' }, { status: 400 })
+  if (files.reduce((s, f) => s + f.size, 0) > MAX_BYTES) return Response.json({ error: 'PDFs demasiado grandes (máx. 4 MB no total). Envia só as páginas do balanço e da demonstração de resultados.' }, { status: 413 })
 
   const { data: empresa } = await supabase
     .from('empresas').select('id').eq('id', String(empresaId)).eq('user_id', user.id).single()
   if (!empresa) return Response.json({ error: 'Empresa não encontrada' }, { status: 404 })
 
-  const base64 = Buffer.from(await file.arrayBuffer()).toString('base64')
+  const documentos = await Promise.all(files.map(async f => ({
+    type: 'document' as const,
+    title: f.name,
+    source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: Buffer.from(await f.arrayBuffer()).toString('base64') },
+  })))
 
   const properties: Record<string, { type: string; description: string }> = {
     ano: { type: 'integer', description: 'Ano do exercício' },
@@ -59,7 +64,7 @@ export async function POST(req: Request) {
     messages: [{
       role: 'user',
       content: [
-        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+        ...documentos,
         { type: 'text', text: INSTRUCOES },
       ],
     }],
