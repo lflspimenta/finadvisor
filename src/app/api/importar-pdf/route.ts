@@ -1,10 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { criarClienteAnthropic } from '@/lib/anthropic'
 import { createClient } from '@/lib/supabase/server'
 import { CAMPOS_ANUAIS } from '@/lib/importacao'
 
 export const maxDuration = 60
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const client = criarClienteAnthropic()
 
 const MAX_BYTES = 4 * 1024 * 1024 // limite do corpo de pedido no Vercel (~4,5 MB)
 

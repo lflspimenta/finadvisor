@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { criarClienteAnthropic } from '@/lib/anthropic'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/ai-profiles'
 import { PerfilContabilista } from '@/types'
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+  const client = criarClienteAnthropic()
 
   const mes = new Date().getMonth() + 1
   const ano = new Date().getFullYear()

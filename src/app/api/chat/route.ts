@@ -1,10 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { criarClienteAnthropic } from '@/lib/anthropic'
 import { getSystemPrompt } from '@/lib/ai-profiles'
 import { PerfilContabilista } from '@/types'
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const client = criarClienteAnthropic()
 
 export async function POST(req: Request) {
   try {
