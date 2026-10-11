@@ -116,8 +116,8 @@ export default function TabCashflow({ empresa, faturacao, despesas, obrigacoes }
           <thead>
             <tr style={{ borderBottom: '1px solid #2a2a2a' }}>
               {['Mês', 'Receita', 'Despesas', 'Fiscal', 'Saldo', 'Acumulado'].map(h => (
-                <th key={h} style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, color: '#888', fontWeight: 500, ':first-child': { textAlign: 'left' } }}>
-                  <span style={{ textAlign: h === 'Mês' ? 'left' : 'right', display: 'block' }}>{h}</span>
+                <th key={h} style={{ padding: '10px 14px', textAlign: h === 'Mês' ? 'left' : 'right', fontSize: 12, color: '#888', fontWeight: 500 }}>
+                  {h}
                 </th>
               ))}
             </tr>
