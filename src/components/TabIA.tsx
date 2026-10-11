@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista, DadosAnuais } from '@/types'
-import { PERFIS, gerarContextoEmpresa } from '@/lib/ai-profiles'
+import { PERFIS, gerarContextoEmpresa, contextoDetalhado } from '@/lib/ai-profiles'
 import { calcularIRC, calcularSS, TAXAS, formatCurrency } from '@/lib/fiscal'
 import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
 
@@ -58,7 +58,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
     ircEstimado: ircEst,
     obrigacoesPendentes: obrigPend,
     dadosAnuais,
-  })
+  }) + contextoDetalhado({ faturacao, despesas, obrigacoes })
 
   async function enviarMensagem() {
     if (!inputMsg.trim() || loading) return

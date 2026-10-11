@@ -106,6 +106,65 @@ Faturação média mensal: ${dados.faturacaoMensal.toFixed(2)} €
 Despesas totais: ${dados.despesasTotal.toFixed(2)} €
 SS mensal do sócio: ${dados.ssMensal.toFixed(2)} €
 IVA a entregar estimado (cobrado − dedutível): ${dados.ivaEstimado.toFixed(2)} €
-IRC estimado: ${dados.ircEstimado.toFixed(2)} €
+IRC estimado sobre o ano em curso (a pagar em Maio do ano seguinte): ${dados.ircEstimado.toFixed(2)} €
 Obrigações fiscais pendentes: ${dados.obrigacoesPendentes.toFixed(2)} €${blocoAnual}`
+}
+
+/**
+ * Detalhe adicional para os consultores: calendário fiscal, faturação mês a mês
+ * e despesas por categoria (ano corrente e anterior).
+ */
+export function contextoDetalhado(dados: {
+  faturacao: { ano: number; mes: number; valor_faturado: number; valor_iva_cobrado: number; notas?: string | null }[]
+  despesas: { ano: number; mes: number; categoria: string; valor: number; valor_iva?: number | null; deducao_iva?: number | null }[]
+  obrigacoes: { tipo: string; ano: number; trimestre?: number | null; mes_pagamento: number; valor_estimado: number; valor_real?: number | null; estado: string; data_limite: string }[]
+  hoje?: Date
+}): string {
+  const hoje = dados.hoje || new Date()
+  const ano = hoje.getFullYear()
+  const eur = (v: number) => `${Number(v).toFixed(2)} €`
+  const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  const partes: string[] = [`\n\nDATA DE HOJE: ${hoje.toISOString().slice(0, 10)}`]
+
+  // Calendário fiscal
+  const obrig = [...dados.obrigacoes].sort((a, b) => a.data_limite.localeCompare(b.data_limite))
+  if (obrig.length > 0) {
+    const linhas = obrig.map(o => {
+      const periodo = o.tipo === 'IVA' && o.trimestre ? ` T${o.trimestre}/${o.ano}`
+        : o.tipo === 'IRC' ? ` (liquidação do exercício ${o.ano - 1})`
+        : o.tipo === 'SS' ? ` ${MESES[o.mes_pagamento - 1]}/${o.ano}`
+        : ` ${o.ano}`
+      const valor = o.estado === 'pago' && o.valor_real ? o.valor_real : o.valor_estimado
+      return `- ${o.data_limite} | ${o.tipo}${periodo} | ${eur(valor)} | ${o.estado}${o.data_limite < hoje.toISOString().slice(0, 10) && o.estado === 'pendente' ? ' (prazo já passou; não está marcado como pago na app — pode já ter sido pago)' : ''}`
+    })
+    partes.push(`CALENDÁRIO FISCAL (data limite | imposto | valor | estado):\n${linhas.join('\n')}`)
+  } else {
+    partes.push('CALENDÁRIO FISCAL: ainda não foi gerado na app.')
+  }
+
+  // Faturação mensal (ano corrente e anterior)
+  for (const a of [ano - 1, ano]) {
+    const fat = dados.faturacao.filter(f => f.ano === a).sort((x, y) => x.mes - y.mes)
+    if (fat.length === 0) continue
+    const estimado = fat.some(f => f.notas?.startsWith('Estimativa'))
+    const todosIguais = fat.length === 12 && fat.every(f => f.valor_faturado === fat[0].valor_faturado && f.valor_iva_cobrado === fat[0].valor_iva_cobrado)
+    const total = fat.reduce((s, f) => s + Number(f.valor_faturado), 0)
+    partes.push(`FATURAÇÃO ${a} (total ${eur(total)})${estimado ? ' — inclui meses estimados (contas anuais ÷ 12, sem sazonalidade real)' : ''}: ` +
+      (todosIguais
+        ? `12 meses × ${eur(fat[0].valor_faturado)} (IVA ${eur(fat[0].valor_iva_cobrado)}/mês)`
+        : fat.map(f => `${MESES[f.mes - 1]} ${eur(f.valor_faturado)} (IVA ${eur(f.valor_iva_cobrado)})`).join('; ')))
+  }
+
+  // Despesas por categoria
+  for (const a of [ano - 1, ano]) {
+    const desp = dados.despesas.filter(d => d.ano === a)
+    if (desp.length === 0) continue
+    const porCat: Record<string, number> = {}
+    for (const d of desp) porCat[d.categoria] = (porCat[d.categoria] || 0) + Number(d.valor)
+    const ivaDed = desp.reduce((s, d) => s + Number(d.valor_iva || 0) * Number(d.deducao_iva ?? 1), 0)
+    partes.push(`DESPESAS ${a} POR CATEGORIA: ` + Object.entries(porCat).sort((x, y) => y[1] - x[1]).map(([c, v]) => `${c} ${eur(v)}`).join('; ') +
+      (ivaDed > 0 ? ` | IVA dedutível registado: ${eur(ivaDed)}` : ''))
+  }
+
+  return partes.join('\n\n')
 }

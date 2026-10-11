@@ -3,7 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/ai-profiles'
 import { PerfilContabilista, Despesa } from '@/types'
 import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
-import { gerarContextoEmpresa } from '@/lib/ai-profiles'
+import { gerarContextoEmpresa, contextoDetalhado } from '@/lib/ai-profiles'
 import { calcularIRC, calcularSS } from '@/lib/fiscal'
 
 // Este endpoint é chamado pelo Vercel Cron uma vez por mês
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
       const [{ data: faturacao }, { data: despesas }, { data: obrigacoes }, { data: dadosAnuais }] = await Promise.all([
         supabase.from('faturacao_mensal').select('*').eq('empresa_id', empresa.id),
         supabase.from('despesas').select('*').eq('empresa_id', empresa.id),
-        supabase.from('obrigacoes_fiscais').select('*').eq('empresa_id', empresa.id).eq('estado', 'pendente'),
+        supabase.from('obrigacoes_fiscais').select('*').eq('empresa_id', empresa.id),
         supabase.from('dados_anuais').select('*').eq('empresa_id', empresa.id),
       ])
 
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
       const lucro = Math.max(0, totalFat - totalDesp)
       const ivaEst = Math.max(0, fatAno.reduce((s: number, f: { valor_iva_cobrado: number }) => s + f.valor_iva_cobrado, 0) - despAno.reduce((s: number, d: Despesa) => s + ivaDedutivel(d), 0))
       const ircEst = calcularIRC(lucro)
-      const obrigPend = (obrigacoes || []).reduce((s: number, o: { valor_estimado: number }) => s + o.valor_estimado, 0)
+      const obrigPend = (obrigacoes || []).filter((o: { estado: string }) => o.estado === 'pendente').reduce((s: number, o: { valor_estimado: number }) => s + o.valor_estimado, 0)
 
       const contexto = gerarContextoEmpresa({
         empresa,
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
         ircEstimado: ircEst,
         obrigacoesPendentes: obrigPend,
         dadosAnuais: dadosAnuais || [],
-      })
+      }) + contextoDetalhado({ faturacao: faturacao || [], despesas: despesas || [], obrigacoes: obrigacoes || [] })
 
       // Gerar relatório para cada perfil
       for (const perfil of ['conservador', 'crescimento', 'fiscal'] as PerfilContabilista[]) {
