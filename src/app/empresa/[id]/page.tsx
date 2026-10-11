@@ -20,7 +20,7 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
 
   const currentYear = new Date().getFullYear()
 
-  const [faturacao, despesas, obrigacoes, saldos, relatorios, dadosAnuais, faturasVenda] = await Promise.all([
+  const [faturacao, despesas, obrigacoes, saldos, relatorios, dadosAnuais, faturasVenda, pessoal] = await Promise.all([
     supabase.from('faturacao_mensal').select('*').eq('empresa_id', id).order('ano,mes'),
     supabase.from('despesas').select('*').eq('empresa_id', id).order('ano,mes'),
     supabase.from('obrigacoes_fiscais').select('*').eq('empresa_id', id).order('data_limite'),
@@ -28,6 +28,7 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
     supabase.from('relatorios_ia').select('*').eq('empresa_id', id).order('created_at', { ascending: false }).limit(10),
     supabase.from('dados_anuais').select('*').eq('empresa_id', id).order('ano'),
     supabase.from('faturas_venda').select('*').eq('empresa_id', id).order('data_documento'),
+    supabase.from('pessoal').select('*').eq('empresa_id', id).maybeSingle(),
   ])
 
   return (
@@ -41,6 +42,7 @@ export default async function EmpresaPage({ params }: { params: Promise<{ id: st
       relatorios={relatorios.data || []}
       dadosAnuais={dadosAnuais.data || []}
       faturasVenda={faturasVenda.data || []}
+      pessoal={pessoal.data || null}
       currentYear={currentYear}
     />
   )

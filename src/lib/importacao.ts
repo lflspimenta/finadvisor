@@ -1,5 +1,6 @@
 import { DadosAnuaisInput } from '@/types'
-import { TAXAS, calcularSS } from '@/lib/fiscal'
+import { TAXAS } from '@/lib/fiscal'
+import { ssEntidadeGerenteAnual } from '@/lib/pessoal'
 
 export type CampoAnual = keyof Omit<DadosAnuaisInput, 'ano' | 'fonte'>
 
@@ -39,7 +40,7 @@ const r2 = (v: number) => Math.round(v * 100) / 100
 /**
  * Converte os valores anuais em lançamentos mensais (÷12).
  * - Faturação: volume de negócios ÷ 12; IVA = faturação × taxa (0 se isento).
- * - Despesas: CMVMC → Fornecedores, Pessoal → Salários (sem a SS do gerente, que a app já soma à parte),
+ * - Despesas: CMVMC → Fornecedores, Pessoal → Salários (sem o encargo da empresa com a SS do gerente, que a app soma à parte),
  *   FSE e Outros gastos → Outros.
  * - Caixa → saldo final de Dezembro.
  */
@@ -50,7 +51,7 @@ export function planearImportacao(
   const faturacaoMensal = r2(Math.max(0, d.volume_negocios) / 12)
   const ivaMensal = opts.regimeIva === 'isento' ? 0 : r2(faturacaoMensal * opts.taxaIva)
 
-  const ssGerenteAnual = calcularSS(opts.remuneracaoSocioMensal || 0)
+  const ssGerenteAnual = ssEntidadeGerenteAnual(opts.remuneracaoSocioMensal || 0, 'com_desemprego', d.ano)
   const pessoalSemSS = Math.max(0, d.gastos_pessoal - ssGerenteAnual)
   const ssGerenteDescontado = r2(d.gastos_pessoal - pessoalSemSS)
 

@@ -159,3 +159,21 @@ export interface FaturaVenda {
   ficheiro_path: string | null
   created_at: string
 }
+
+export interface Pessoal {
+  id: string
+  empresa_id: string
+  n_trabalhadores: number
+  massa_salarial_mensal: number
+  subsidio_alimentacao_mensal: number
+  subsidios_duodecimos: boolean
+  mes_subsidio_ferias: number
+  mes_subsidio_natal: number
+  taxa_tsu_empresa: number
+  taxa_irs_trabalhadores: number
+  outros_encargos_pct: number
+  gerente_regime: 'com_desemprego' | 'outros'
+  gerente_14_meses: boolean
+  taxa_irs_gerente: number
+  updated_at?: string
+}

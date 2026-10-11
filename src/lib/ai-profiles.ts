@@ -104,7 +104,7 @@ Regime IVA: ${dados.empresa.regime_iva}
 Faturação anual acumulada: ${dados.faturacaoTotal.toFixed(2)} €
 Faturação média mensal: ${dados.faturacaoMensal.toFixed(2)} €
 Despesas totais: ${dados.despesasTotal.toFixed(2)} €
-SS mensal do sócio: ${dados.ssMensal.toFixed(2)} €
+Segurança Social a entregar este mês (gerente + trabalhadores): ${dados.ssMensal.toFixed(2)} €
 IVA a entregar estimado (cobrado − dedutível): ${dados.ivaEstimado.toFixed(2)} €
 IRC estimado sobre o ano em curso (a pagar em Maio do ano seguinte): ${dados.ircEstimado.toFixed(2)} €
 Obrigações fiscais pendentes: ${dados.obrigacoesPendentes.toFixed(2)} €${blocoAnual}`
@@ -167,4 +167,22 @@ export function contextoDetalhado(dados: {
   }
 
   return partes.join('\n\n')
+}
+
+/** Pessoal e tesouraria prevista, para os consultores. */
+export function contextoPessoalTesouraria(dados: {
+  remuneracaoGerente: number
+  pessoal: { n_trabalhadores: number; massa_salarial_mensal: number; subsidio_alimentacao_mensal: number; subsidios_duodecimos: boolean; gerente_regime: string } | null
+  custoPessoalAnual: number
+  projecao: { saldoPartida: { valor: number; data: string; origem: string }; meses: { rotulo: string; recebimentos: number; despesasCorrentes: number; pessoal: number; impostos: number; saldoAcumulado: number }[]; primeiroMesNegativo: { rotulo: string; saldoAcumulado: number } | null }
+}): string {
+  const eur = (v: number) => `${Number(v).toFixed(2)} €`
+  const p = dados.pessoal
+  const linhasPessoal = p
+    ? `PESSOAL: ${p.n_trabalhadores} trabalhador(es), vencimentos base ${eur(p.massa_salarial_mensal)}/mês, subsídio de alimentação ${eur(p.subsidio_alimentacao_mensal)}/mês, subsídios ${p.subsidios_duodecimos ? 'em duodécimos' : 'pagos de uma vez'}; gerente ${eur(dados.remuneracaoGerente)}/mês (SS ${p.gerente_regime === 'com_desemprego' ? '34,75%' : '29,6%'}). Custo anual total da empresa com pessoal: ${eur(dados.custoPessoalAnual)}.`
+    : `PESSOAL: não configurado na app (salários apenas nas despesas lançadas); gerente ${eur(dados.remuneracaoGerente)}/mês.`
+  const pr = dados.projecao
+  const partida = pr.saldoPartida.origem === 'nenhum' ? 'saldo bancário não indicado (projeção parte de 0 €)' : `saldo bancário de partida ${eur(pr.saldoPartida.valor)} (${pr.saldoPartida.data})`
+  const tabela = pr.meses.map(m => `${m.rotulo}: entra ${eur(m.recebimentos)} | sai ${eur(m.despesasCorrentes + m.pessoal)} + impostos ${eur(m.impostos)} | saldo ${eur(m.saldoAcumulado)}`).join('\n')
+  return `\n\n${linhasPessoal}\n\nTESOURARIA PREVISTA (12 meses, ${partida})${pr.primeiroMesNegativo ? ` — ATENÇÃO: saldo negativo a partir de ${pr.primeiroMesNegativo.rotulo}` : ''}:\n${tabela}`
 }

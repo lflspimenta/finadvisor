@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista, DadosAnuais } from '@/types'
-import { PERFIS, gerarContextoEmpresa, contextoDetalhado } from '@/lib/ai-profiles'
-import { calcularIRC, calcularSS, TAXAS, formatCurrency } from '@/lib/fiscal'
-import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
+import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista, DadosAnuais, SaldoCaixa } from '@/types'
+import { ConfigPessoal, CONFIG_PESSOAL_PADRAO, custosPessoalMes, custoPessoalAno } from '@/lib/pessoal'
+import { calcularProjecao } from '@/lib/cashflow'
+import { PERFIS, gerarContextoEmpresa, contextoDetalhado, contextoPessoalTesouraria } from '@/lib/ai-profiles'
+import { calcularIRC, formatCurrency, custosOperacionais } from '@/lib/fiscal'
+import { ivaDedutivel } from '@/lib/faturas'
 
 interface Props {
   empresa: Empresa
@@ -15,6 +17,8 @@ interface Props {
   setRelatorios: (r: RelatorioIA[]) => void
   userId: string
   dadosAnuais: DadosAnuais[]
+  pessoal: ConfigPessoal | null
+  saldos: SaldoCaixa[]
 }
 
 interface ChatMsg {
@@ -22,7 +26,7 @@ interface ChatMsg {
   content: string
 }
 
-export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relatorios, setRelatorios, userId, dadosAnuais }: Props) {
+export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relatorios, setRelatorios, userId, dadosAnuais, pessoal, saldos }: Props) {
   const [perfilAtivo, setPerfilAtivo] = useState<PerfilContabilista>('conservador')
   const [mode, setMode] = useState<'chat' | 'relatorio'>('chat')
   const [mensagens, setMensagens] = useState<ChatMsg[]>([])
@@ -40,10 +44,10 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
   const currentYear = new Date().getFullYear()
   const fatAno = faturacao.filter(f => f.ano === currentYear)
   const totalFat = fatAno.reduce((s, f) => s + f.valor_faturado, 0)
-  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + custoDespesa(d), 0)
+  const totalDesp = custosOperacionais(empresa, despesas, currentYear, pessoal, new Date().getMonth() + 1)
   const faturacaoMensal = fatAno.length > 0 ? totalFat / fatAno.length : 0
-  const ssMensal = calcularSS(empresa.remuneracao_socio_mensal, 1)
-  const lucro = Math.max(0, totalFat - totalDesp - calcularSS(empresa.remuneracao_socio_mensal))
+  const ssMensal = custosPessoalMes(pessoal || CONFIG_PESSOAL_PADRAO, empresa.remuneracao_socio_mensal, currentYear, new Date().getMonth() + 1).ssTotal
+  const lucro = Math.max(0, totalFat - totalDesp)
   const ivaEst = Math.max(0, fatAno.reduce((s, f) => s + f.valor_iva_cobrado, 0) - despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + ivaDedutivel(d), 0))
   const ircEst = calcularIRC(lucro)
   const obrigPend = obrigacoes.filter(o => o.estado === 'pendente').reduce((s, o) => s + o.valor_estimado, 0)
@@ -59,6 +63,12 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
     obrigacoesPendentes: obrigPend,
     dadosAnuais,
   }) + contextoDetalhado({ faturacao, despesas, obrigacoes })
+    + contextoPessoalTesouraria({
+      remuneracaoGerente: empresa.remuneracao_socio_mensal,
+      pessoal,
+      custoPessoalAnual: custoPessoalAno(pessoal || CONFIG_PESSOAL_PADRAO, empresa.remuneracao_socio_mensal, currentYear),
+      projecao: calcularProjecao({ empresa, faturacao, despesas, obrigacoes, saldos, pessoal }),
+    })
 
   async function enviarMensagem() {
     if (!inputMsg.trim() || loading) return
@@ -147,7 +157,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
       </div>
 
       {/* Seletor de perfil */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
         {Object.values(PERFIS).map(p => (
           <button
             key={p.id}

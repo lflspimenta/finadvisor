@@ -2,9 +2,11 @@ import { criarClienteAnthropic } from '@/lib/anthropic'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/ai-profiles'
 import { PerfilContabilista, Despesa } from '@/types'
-import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
-import { gerarContextoEmpresa, contextoDetalhado } from '@/lib/ai-profiles'
-import { calcularIRC, calcularSS } from '@/lib/fiscal'
+import { ivaDedutivel } from '@/lib/faturas'
+import { CONFIG_PESSOAL_PADRAO, custosPessoalMes, custoPessoalAno } from '@/lib/pessoal'
+import { calcularProjecao } from '@/lib/cashflow'
+import { gerarContextoEmpresa, contextoDetalhado, contextoPessoalTesouraria } from '@/lib/ai-profiles'
+import { calcularIRC, custosOperacionais } from '@/lib/fiscal'
 
 // Este endpoint é chamado pelo Vercel Cron uma vez por mês
 export async function GET(req: Request) {
@@ -34,20 +36,22 @@ export async function GET(req: Request) {
   for (const empresa of empresas) {
     try {
       // Buscar dados da empresa
-      const [{ data: faturacao }, { data: despesas }, { data: obrigacoes }, { data: dadosAnuais }] = await Promise.all([
+      const [{ data: faturacao }, { data: despesas }, { data: obrigacoes }, { data: dadosAnuais }, { data: pessoal }, { data: saldos }] = await Promise.all([
         supabase.from('faturacao_mensal').select('*').eq('empresa_id', empresa.id),
         supabase.from('despesas').select('*').eq('empresa_id', empresa.id),
         supabase.from('obrigacoes_fiscais').select('*').eq('empresa_id', empresa.id),
         supabase.from('dados_anuais').select('*').eq('empresa_id', empresa.id),
+        supabase.from('pessoal').select('*').eq('empresa_id', empresa.id).maybeSingle(),
+        supabase.from('saldos_caixa').select('*').eq('empresa_id', empresa.id),
       ])
 
       const currentYear = ano
       const fatAno = (faturacao || []).filter((f: { ano: number }) => f.ano === currentYear)
       const totalFat = fatAno.reduce((s: number, f: { valor_faturado: number }) => s + f.valor_faturado, 0)
       const despAno = (despesas || []).filter((d: Despesa) => d.ano === currentYear)
-      const totalDesp = despAno.reduce((s: number, d: Despesa) => s + custoDespesa(d), 0)
+      const totalDesp = custosOperacionais(empresa, despesas || [], currentYear, pessoal || null, new Date().getMonth() + 1)
       const faturacaoMensal = fatAno.length > 0 ? totalFat / fatAno.length : 0
-      const ssMensal = calcularSS(empresa.remuneracao_socio_mensal, 1)
+      const ssMensal = custosPessoalMes(pessoal || CONFIG_PESSOAL_PADRAO, empresa.remuneracao_socio_mensal, currentYear, new Date().getMonth() + 1).ssTotal
       const lucro = Math.max(0, totalFat - totalDesp)
       const ivaEst = Math.max(0, fatAno.reduce((s: number, f: { valor_iva_cobrado: number }) => s + f.valor_iva_cobrado, 0) - despAno.reduce((s: number, d: Despesa) => s + ivaDedutivel(d), 0))
       const ircEst = calcularIRC(lucro)
@@ -64,6 +68,12 @@ export async function GET(req: Request) {
         obrigacoesPendentes: obrigPend,
         dadosAnuais: dadosAnuais || [],
       }) + contextoDetalhado({ faturacao: faturacao || [], despesas: despesas || [], obrigacoes: obrigacoes || [] })
+        + contextoPessoalTesouraria({
+          remuneracaoGerente: empresa.remuneracao_socio_mensal,
+          pessoal: pessoal || null,
+          custoPessoalAnual: custoPessoalAno(pessoal || CONFIG_PESSOAL_PADRAO, empresa.remuneracao_socio_mensal, currentYear),
+          projecao: calcularProjecao({ empresa, faturacao: faturacao || [], despesas: despesas || [], obrigacoes: obrigacoes || [], saldos: saldos || [], pessoal: pessoal || null }),
+        })
 
       // Gerar relatório para cada perfil
       for (const perfil of ['conservador', 'crescimento', 'fiscal'] as PerfilContabilista[]) {

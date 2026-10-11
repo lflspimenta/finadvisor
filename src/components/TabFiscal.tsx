@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, DadosAnuais } from '@/types'
-import { gerarObrigacoesFiscais, formatCurrency, getMesNome, getTipoObrigacaoLabel, calcularSS, TAXAS, taxasIRC } from '@/lib/fiscal'
+import { ConfigPessoal, CONFIG_PESSOAL_PADRAO, custosPessoalMes } from '@/lib/pessoal'
+import { gerarObrigacoesFiscais, formatCurrency, getMesNome, getTipoObrigacaoLabel, taxasIRC } from '@/lib/fiscal'
 
 interface Props {
   empresa: Empresa
@@ -13,11 +14,22 @@ interface Props {
   setObrigacoes: (o: ObrigacaoFiscal[]) => void
   currentYear: number
   dadosAnuais: DadosAnuais[]
+  pessoal: ConfigPessoal | null
 }
 
 const MESES_NOMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+const TIPOS_AUTO = ['IVA', 'SS', 'IRS', 'IRC', 'PPC']
 
-export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, setObrigacoes, currentYear, dadosAnuais }: Props) {
+/** Período a que a obrigação se refere (ex.: "T1", "ref. Jan"). */
+function periodo(o: ObrigacaoFiscal): string | null {
+  if (o.tipo === 'IVA' && o.trimestre) return `T${o.trimestre}`
+  if (o.tipo === 'IVA') { const m = Number(o.data_limite.slice(5, 7)); return `ref. ${MESES_NOMES[(m + 9) % 12]}` }
+  if (o.tipo === 'SS' || o.tipo === 'IRS') return `ref. ${MESES_NOMES[o.mes_pagamento - 1]}`
+  if (o.tipo === 'IRC') return `exercício ${o.ano - 1}`
+  return null
+}
+
+export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, setObrigacoes, currentYear, dadosAnuais, pessoal }: Props) {
   const [year, setYear] = useState(currentYear)
   const [generating, setGenerating] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -27,17 +39,17 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
 
   async function gerarCalendario() {
     setGenerating(true)
-    const novas = gerarObrigacoesFiscais(empresa, faturacao, despesas, year, dadosAnuais)
+    const novas = gerarObrigacoesFiscais(empresa, faturacao, despesas, year, dadosAnuais, pessoal)
 
-    // Remover estimativas de IRC/PPC ainda pendentes deste ano (são recalculadas abaixo)
+    // Remover as estimativas ainda pendentes deste ano (são recalculadas abaixo; as pagas mantêm-se)
     await supabase
       .from('obrigacoes_fiscais')
       .delete()
       .eq('empresa_id', empresa.id)
       .eq('ano', year)
       .eq('estado', 'pendente')
-      .in('tipo', ['IRC', 'PPC'])
-    const mantidas = obrigacoes.filter(o => !(o.ano === year && o.estado === 'pendente' && (o.tipo === 'IRC' || o.tipo === 'PPC')))
+      .in('tipo', TIPOS_AUTO)
+    const mantidas = obrigacoes.filter(o => !(o.ano === year && o.estado === 'pendente' && TIPOS_AUTO.includes(o.tipo)))
     const pagas = new Set(mantidas.filter(o => o.ano === year && o.estado !== 'pendente').map(o => `${o.tipo}-${o.mes_pagamento}`))
 
     // Não sobrepor obrigações já marcadas como pagas
@@ -80,12 +92,12 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
   const totalPago = obrigAno.filter(o => o.estado === 'pago').reduce((s, o) => s + (o.valor_real || o.valor_estimado), 0)
   const totalAtrasado = obrigAno.filter(o => o.estado === 'atrasado').reduce((s, o) => s + o.valor_estimado, 0)
 
-  // Agrupar por mês
-  const porMes = MESES_NOMES.map((nome, i) => ({
-    mes: i + 1,
-    nome,
-    obrig: obrigAno.filter(o => o.mes_pagamento === i + 1),
-  })).filter(m => m.obrig.length > 0)
+  // Agrupar pelo mês em que se paga (data limite)
+  const porMes = Array.from(new Set(obrigAno.map(o => o.data_limite.slice(0, 7)))).sort().map(chave => ({
+    mes: chave,
+    nome: `${getMesNome(Number(chave.slice(5, 7)))} ${chave.slice(0, 4)}`,
+    obrig: obrigAno.filter(o => o.data_limite.startsWith(chave)).sort((x, y) => x.data_limite.localeCompare(y.data_limite)),
+  }))
 
   function estadoColor(estado: string) {
     if (estado === 'pago') return 'var(--positive)'
@@ -117,12 +129,12 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Pendente', value: formatCurrency(totalPendente), color: 'var(--warning)' },
           { label: 'Pago', value: formatCurrency(totalPago), color: 'var(--positive)' },
           { label: 'Atrasado', value: formatCurrency(totalAtrasado), color: 'var(--negative)' },
-          { label: 'SS mensal estimado', value: formatCurrency(empresa.remuneracao_socio_mensal * TAXAS.SS_GERENTE), color: 'var(--info)' },
+          { label: 'SS a entregar este mês', value: formatCurrency(custosPessoalMes(pessoal || CONFIG_PESSOAL_PADRAO, empresa.remuneracao_socio_mensal, year, ((new Date().getMonth() + 11) % 12) + 1).ssTotal), color: 'var(--info)' },
         ].map(k => (
           <div key={k.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px' }}>
             <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 4px' }}>{k.label}</p>
@@ -143,7 +155,7 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
           {porMes.map(m => (
             <div key={m.mes} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ background: 'var(--hover-soft)', padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
-                <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 14 }}>{getMesNome(m.mes)} {year}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text)', fontSize: 14 }}>A pagar em {m.nome}</span>
                 <span style={{ marginLeft: 12, color: 'var(--muted)', fontSize: 12 }}>
                   {m.obrig.length} obrigação{m.obrig.length !== 1 ? 'ões' : ''}
                 </span>
@@ -163,7 +175,7 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
                       <div>
                         <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>
                           {getTipoObrigacaoLabel(o.tipo)}
-                          {o.trimestre && <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 6 }}>T{o.trimestre}</span>}
+                          {periodo(o) && <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 6 }}>{periodo(o)}</span>}
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>Limite: {o.data_limite}</p>
                       </div>
@@ -199,12 +211,13 @@ export default function TabFiscal({ empresa, faturacao, despesas, obrigacoes, se
       {/* Notas fiscais */}
       <div style={{ marginTop: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
         <h4 style={{ color: 'var(--muted)', fontSize: 13, fontWeight: 500, marginTop: 0, marginBottom: 12 }}>ℹ️ Taxas aplicadas ({year})</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, fontSize: 13, color: 'var(--muted)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, fontSize: 13, color: 'var(--muted)' }}>
           <div>• IVA normal: 23%</div>
+          <div>• SS trabalhadores e gerente: 23,75% empresa + 11%</div>
           <div>• IRC PMEs (≤50k€): {Math.round(taxasIRC(year).pme * 100)}%</div>
           <div>• IRC geral: {Math.round(taxasIRC(year).geral * 100)}%</div>
-          <div>• SS gerente: 21,4%</div>
-          <div>• IVA trimestral: pago Mai/Ago/Nov/Fev</div>
+          <div>• SS: até dia 25 do mês seguinte · IRS retido: até dia 20</div>
+          <div>• IVA: pago até dia 25 do 2.º mês seguinte</div>
           <div>• PPC: 80% do IRC do ano anterior (Jul/Set/Dez)</div>
         </div>
         <p style={{ color: 'var(--faint)', fontSize: 12, marginTop: 12, marginBottom: 0 }}>

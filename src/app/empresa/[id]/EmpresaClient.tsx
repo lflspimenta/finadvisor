@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, SaldoCaixa, RelatorioIA, DadosAnuais, FaturaVenda } from '@/types'
+import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, SaldoCaixa, RelatorioIA, DadosAnuais, FaturaVenda, Pessoal } from '@/types'
 import { MARCA_IMPORTADO } from '@/lib/importacao'
-import { custoDespesa } from '@/lib/faturas'
+import { custosOperacionais } from '@/lib/fiscal'
+import TabPessoal from '@/components/TabPessoal'
 import ImportarContasAnuais from '@/components/ImportarContasAnuais'
 import Link from 'next/link'
 import TabFaturacao from '@/components/TabFaturacao'
@@ -22,21 +23,25 @@ interface Props {
   relatorios: RelatorioIA[]
   dadosAnuais: DadosAnuais[]
   faturasVenda: FaturaVenda[]
+  pessoal: Pessoal | null
   currentYear: number
 }
 
 const TABS = [
   { id: 'faturacao', label: '📊 Faturação' },
   { id: 'despesas', label: '💸 Despesas' },
+  { id: 'pessoal', label: '👥 Pessoal' },
   { id: 'fiscal', label: '📅 Calendário Fiscal' },
   { id: 'cashflow', label: '📈 Cashflow' },
   { id: 'ia', label: '🤖 Consultores IA' },
 ]
 
 export default function EmpresaClient({
-  empresa, userId, faturacao: initialFat, despesas: initialDesp,
-  obrigacoes: initialObrig, saldos: initialSaldos, relatorios: initialRel, dadosAnuais: initialAnuais, faturasVenda: initialVendas, currentYear
+  empresa: initialEmpresa, userId, faturacao: initialFat, despesas: initialDesp,
+  obrigacoes: initialObrig, saldos: initialSaldos, relatorios: initialRel, dadosAnuais: initialAnuais, faturasVenda: initialVendas, pessoal: initialPessoal, currentYear
 }: Props) {
+  const [empresa, setEmpresa] = useState(initialEmpresa)
+  const [pessoal, setPessoal] = useState(initialPessoal)
   const [activeTab, setActiveTab] = useState('faturacao')
   const [faturacao, setFaturacao] = useState(initialFat)
   const [despesas, setDespesas] = useState(initialDesp)
@@ -44,7 +49,7 @@ export default function EmpresaClient({
   const [relatorios, setRelatorios] = useState(initialRel)
   const [dadosAnuais, setDadosAnuais] = useState(initialAnuais)
   const [faturasVenda, setFaturasVenda] = useState(initialVendas)
-  const [, setSaldos] = useState<SaldoCaixa[]>(initialSaldos)
+  const [saldos, setSaldos] = useState<SaldoCaixa[]>(initialSaldos)
   const [importarAberto, setImportarAberto] = useState(false)
   const [avisoImport, setAvisoImport] = useState('')
 
@@ -59,10 +64,14 @@ export default function EmpresaClient({
 
   // Indicadores resumo
   const fatAno = faturacao.filter(f => f.ano === currentYear)
-  const totalFat = fatAno.reduce((s, f) => s + f.valor_faturado, 0)
-  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + custoDespesa(d), 0)
+  // Comparar só meses completos (até ao mês anterior), para faturação e custos cobrirem o mesmo período
+  const ateMes = Math.max(1, new Date().getFullYear() === currentYear ? new Date().getMonth() : 12)
+  const MESES_ABR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+  const periodoKpi = ateMes === 1 ? 'jan' : `jan–${MESES_ABR[ateMes - 1]}`
+  const totalFat = fatAno.filter(f => f.mes <= ateMes).reduce((s, f) => s + Number(f.valor_faturado), 0)
+  const totalDesp = custosOperacionais(empresa, despesas, currentYear, pessoal, ateMes)
   const obrigPendentes = obrigacoes.filter(o => o.estado === 'pendente').reduce((s, o) => s + o.valor_estimado, 0)
-  const lucroEst = Math.max(0, totalFat - totalDesp)
+  const lucroEst = totalFat - totalDesp
 
   function fmt(v: number) {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)
@@ -73,7 +82,7 @@ export default function EmpresaClient({
       {/* Header */}
       <header style={{
         background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 24px', height: 60,
+        padding: '8px 16px', minHeight: 60, gap: 8, flexWrap: 'wrap',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 100,
       }}>
@@ -120,11 +129,11 @@ export default function EmpresaClient({
 
       {/* KPI Cards */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '16px 24px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
           {[
-            { label: `Faturação ${currentYear}`, value: fmt(totalFat), color: 'var(--accent)' },
-            { label: `Despesas ${currentYear} (sem IVA dedutível)`, value: fmt(totalDesp), color: 'var(--warning)' },
-            { label: 'Resultado estimado', value: fmt(lucroEst), color: lucroEst > 0 ? 'var(--positive)' : 'var(--negative)' },
+            { label: `Faturação ${currentYear} (${periodoKpi})`, value: fmt(totalFat), color: 'var(--accent)' },
+            { label: `Custos (${periodoKpi}, s/ IVA dedutível)`, value: fmt(totalDesp), color: 'var(--warning)' },
+            { label: `Resultado (${periodoKpi})`, value: fmt(lucroEst), color: lucroEst >= 0 ? 'var(--positive)' : 'var(--negative)' },
             { label: 'Obrigações pendentes', value: fmt(obrigPendentes), color: 'var(--negative)' },
           ].map(kpi => (
             <div key={kpi.label} style={{
@@ -140,7 +149,7 @@ export default function EmpresaClient({
 
       {/* Tabs */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', padding: '0 24px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 4 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', gap: 4, overflowX: 'auto', whiteSpace: 'nowrap' }}>
           {TABS.map(tab => (
             <button
               key={tab.id}
@@ -179,6 +188,15 @@ export default function EmpresaClient({
             currentYear={currentYear}
           />
         )}
+        {activeTab === 'pessoal' && (
+          <TabPessoal
+            empresa={empresa}
+            setEmpresa={setEmpresa}
+            pessoal={pessoal}
+            setPessoal={setPessoal}
+            currentYear={currentYear}
+          />
+        )}
         {activeTab === 'fiscal' && (
           <TabFiscal
             empresa={empresa}
@@ -188,6 +206,7 @@ export default function EmpresaClient({
             setObrigacoes={setObrigacoes}
             currentYear={currentYear}
             dadosAnuais={dadosAnuais}
+            pessoal={pessoal}
           />
         )}
         {activeTab === 'cashflow' && (
@@ -196,6 +215,9 @@ export default function EmpresaClient({
             faturacao={faturacao}
             despesas={despesas}
             obrigacoes={obrigacoes}
+            saldos={saldos}
+            setSaldos={setSaldos}
+            pessoal={pessoal}
           />
         )}
         {activeTab === 'ia' && (
@@ -208,6 +230,8 @@ export default function EmpresaClient({
             setRelatorios={setRelatorios}
             userId={userId}
             dadosAnuais={dadosAnuais}
+            pessoal={pessoal}
+            saldos={saldos}
           />
         )}
       </main>

@@ -152,7 +152,7 @@ export default function TabFaturacao({ empresaId, faturacao, setFaturacao, fatur
       )}
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Total faturado', value: formatCurrency(totalAno) },
           { label: 'Total IVA cobrado', value: formatCurrency(totalIVA) },
