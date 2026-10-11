@@ -95,6 +95,37 @@ CREATE TABLE IF NOT EXISTS chat_historico (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 8. Dados anuais (importados de IES / Balanço / DR)
+CREATE TABLE IF NOT EXISTS dados_anuais (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  empresa_id UUID REFERENCES empresas(id) ON DELETE CASCADE NOT NULL,
+  ano INTEGER NOT NULL,
+  -- Demonstração de resultados
+  volume_negocios NUMERIC(14,2) DEFAULT 0,
+  cmvmc NUMERIC(14,2) DEFAULT 0,
+  fse NUMERIC(14,2) DEFAULT 0,
+  gastos_pessoal NUMERIC(14,2) DEFAULT 0,
+  outros_gastos NUMERIC(14,2) DEFAULT 0,
+  ebitda NUMERIC(14,2) DEFAULT 0,
+  juros NUMERIC(14,2) DEFAULT 0,
+  resultado_antes_impostos NUMERIC(14,2) DEFAULT 0,
+  irc NUMERIC(14,2) DEFAULT 0,
+  resultado_liquido NUMERIC(14,2) DEFAULT 0,
+  -- Balanço
+  ativo_corrente NUMERIC(14,2) DEFAULT 0,
+  caixa NUMERIC(14,2) DEFAULT 0,
+  inventarios NUMERIC(14,2) DEFAULT 0,
+  ativo_total NUMERIC(14,2) DEFAULT 0,
+  passivo_corrente NUMERIC(14,2) DEFAULT 0,
+  passivo_total NUMERIC(14,2) DEFAULT 0,
+  capital_proprio NUMERIC(14,2) DEFAULT 0,
+  divida_financeira NUMERIC(14,2) DEFAULT 0,
+  -- Origem
+  fonte TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (empresa_id, ano)
+);
+
 -- RLS (Row Level Security) - cada utilizador só vê os seus dados
 ALTER TABLE empresas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE faturacao_mensal ENABLE ROW LEVEL SECURITY;
@@ -103,6 +134,7 @@ ALTER TABLE obrigacoes_fiscais ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saldos_caixa ENABLE ROW LEVEL SECURITY;
 ALTER TABLE relatorios_ia ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_historico ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dados_anuais ENABLE ROW LEVEL SECURITY;
 
 -- Políticas RLS para empresas
 CREATE POLICY "Users can view own empresas" ON empresas FOR SELECT USING (auth.uid() = user_id);
@@ -141,6 +173,11 @@ CREATE POLICY "Service can insert relatorios" ON relatorios_ia FOR INSERT WITH C
 -- Políticas RLS para chat_historico
 CREATE POLICY "Users can manage own chat" ON chat_historico FOR ALL USING (
   auth.uid() = user_id
+);
+
+-- Políticas RLS para dados_anuais
+CREATE POLICY "Users can manage own dados_anuais" ON dados_anuais FOR ALL USING (
+  empresa_id IN (SELECT id FROM empresas WHERE user_id = auth.uid())
 );
 
 -- Índices para performance

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista } from '@/types'
+import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista, DadosAnuais } from '@/types'
 import { PERFIS, gerarContextoEmpresa } from '@/lib/ai-profiles'
 import { calcularIRC, calcularSS, TAXAS, formatCurrency } from '@/lib/fiscal'
 
@@ -13,6 +13,7 @@ interface Props {
   relatorios: RelatorioIA[]
   setRelatorios: (r: RelatorioIA[]) => void
   userId: string
+  dadosAnuais: DadosAnuais[]
 }
 
 interface ChatMsg {
@@ -20,7 +21,7 @@ interface ChatMsg {
   content: string
 }
 
-export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relatorios, setRelatorios, userId }: Props) {
+export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relatorios, setRelatorios, userId, dadosAnuais }: Props) {
   const [perfilAtivo, setPerfilAtivo] = useState<PerfilContabilista>('conservador')
   const [mode, setMode] = useState<'chat' | 'relatorio'>('chat')
   const [mensagens, setMensagens] = useState<ChatMsg[]>([])
@@ -55,6 +56,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
     ivaEstimado: ivaEst,
     ircEstimado: ircEst,
     obrigacoesPendentes: obrigPend,
+    dadosAnuais,
   })
 
   async function enviarMensagem() {
@@ -135,10 +137,10 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
     <div>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: '#f0f0f0', margin: '0 0 4px' }}>
+        <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: 'var(--text)', margin: '0 0 4px' }}>
           Consultores IA
         </h2>
-        <p style={{ color: '#888', fontSize: 14, margin: 0 }}>
+        <p style={{ color: 'var(--muted)', fontSize: 14, margin: 0 }}>
           3 perspetivas financeiras para a sua empresa
         </p>
       </div>
@@ -150,39 +152,39 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
             key={p.id}
             onClick={() => setPerfilAtivo(p.id)}
             style={{
-              background: perfilAtivo === p.id ? `${p.cor}15` : '#1a1a1a',
-              border: `1px solid ${perfilAtivo === p.id ? p.cor : '#2a2a2a'}`,
+              background: perfilAtivo === p.id ? `${p.cor}15` : 'var(--surface)',
+              border: `1px solid ${perfilAtivo === p.id ? p.cor : 'var(--border)'}`,
               borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left',
               transition: 'all 0.2s',
             }}
           >
             <div style={{ fontSize: 22, marginBottom: 6 }}>{p.avatar}</div>
-            <div style={{ fontWeight: 600, fontSize: 14, color: perfilAtivo === p.id ? p.cor : '#f0f0f0' }}>{p.nome}</div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{p.titulo}</div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: perfilAtivo === p.id ? p.cor : 'var(--text)' }}>{p.nome}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{p.titulo}</div>
           </button>
         ))}
       </div>
 
       {/* Perfil info */}
-      <div style={{ background: '#1a1a1a', border: `1px solid ${perfilInfo.cor}30`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{ background: 'var(--surface)', border: `1px solid ${perfilInfo.cor}30`, borderRadius: 12, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
         <span style={{ fontSize: 32 }}>{perfilInfo.avatar}</span>
         <div>
           <p style={{ margin: 0, fontWeight: 600, color: perfilInfo.cor, fontSize: 15 }}>{perfilInfo.nome}</p>
-          <p style={{ margin: 0, color: '#888', fontSize: 13 }}>{perfilInfo.descricao}</p>
+          <p style={{ margin: 0, color: 'var(--muted)', fontSize: 13 }}>{perfilInfo.descricao}</p>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button onClick={() => setMode('chat')} style={{ ...tabBtn, background: mode === 'chat' ? '#ffffff15' : 'transparent', color: mode === 'chat' ? '#f0f0f0' : '#888' }}>💬 Chat</button>
-          <button onClick={() => setMode('relatorio')} style={{ ...tabBtn, background: mode === 'relatorio' ? '#ffffff15' : 'transparent', color: mode === 'relatorio' ? '#f0f0f0' : '#888' }}>📋 Relatórios</button>
+          <button onClick={() => setMode('chat')} style={{ ...tabBtn, background: mode === 'chat' ? 'var(--hover-strong)' : 'transparent', color: mode === 'chat' ? 'var(--text)' : 'var(--muted)' }}>💬 Chat</button>
+          <button onClick={() => setMode('relatorio')} style={{ ...tabBtn, background: mode === 'relatorio' ? 'var(--hover-strong)' : 'transparent', color: mode === 'relatorio' ? 'var(--text)' : 'var(--muted)' }}>📋 Relatórios</button>
         </div>
       </div>
 
       {/* CHAT */}
       {mode === 'chat' && (
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           {/* Mensagens */}
           <div style={{ height: 420, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {mensagens.length === 0 && !streamText && (
-              <div style={{ textAlign: 'center', color: '#555', marginTop: 80 }}>
+              <div style={{ textAlign: 'center', color: 'var(--faint)', marginTop: 80 }}>
                 <span style={{ fontSize: 36 }}>{perfilInfo.avatar}</span>
                 <p style={{ fontSize: 14, marginTop: 12 }}>Pergunte ao {perfilInfo.nome} sobre as finanças da sua empresa</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 20, maxWidth: 400, margin: '16px auto 0' }}>
@@ -193,7 +195,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
                     'Posso obter financiamento?',
                   ].map(q => (
                     <button key={q} onClick={() => { setInputMsg(q) }} style={{
-                      background: '#0f0f0f', border: '1px solid #2a2a2a', color: '#888',
+                      background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--muted)',
                       borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer', textAlign: 'left',
                     }}>
                       {q}
@@ -209,9 +211,9 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
                 )}
                 <div style={{
                   maxWidth: '75%', padding: '12px 16px', borderRadius: 12, fontSize: 14, lineHeight: 1.6,
-                  background: m.role === 'user' ? perfilInfo.cor : '#0f0f0f',
-                  color: m.role === 'user' ? '#0f0f0f' : '#f0f0f0',
-                  border: m.role === 'assistant' ? '1px solid #2a2a2a' : 'none',
+                  background: m.role === 'user' ? perfilInfo.cor : 'var(--bg)',
+                  color: m.role === 'user' ? 'var(--on-accent)' : 'var(--text)',
+                  border: m.role === 'assistant' ? '1px solid var(--border)' : 'none',
                   whiteSpace: 'pre-wrap',
                 }}>
                   {m.content}
@@ -221,7 +223,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
             {streamText && (
               <div style={{ display: 'flex' }}>
                 <span style={{ fontSize: 22, marginRight: 10, flexShrink: 0 }}>{perfilInfo.avatar}</span>
-                <div style={{ maxWidth: '75%', padding: '12px 16px', borderRadius: 12, fontSize: 14, lineHeight: 1.6, background: '#0f0f0f', color: '#f0f0f0', border: '1px solid #2a2a2a', whiteSpace: 'pre-wrap' }}>
+                <div style={{ maxWidth: '75%', padding: '12px 16px', borderRadius: 12, fontSize: 14, lineHeight: 1.6, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', whiteSpace: 'pre-wrap' }}>
                   {streamText}<span style={{ opacity: 0.5 }}>▊</span>
                 </div>
               </div>
@@ -230,7 +232,7 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
           </div>
 
           {/* Input */}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #2a2a2a', display: 'flex', gap: 10 }}>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 10 }}>
             <input
               value={inputMsg}
               onChange={e => setInputMsg(e.target.value)}
@@ -261,37 +263,37 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
       {mode === 'relatorio' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ color: '#f0f0f0', fontSize: 16, margin: 0 }}>Relatórios do {perfilInfo.nome}</h3>
+            <h3 style={{ color: 'var(--text)', fontSize: 16, margin: 0 }}>Relatórios do {perfilInfo.nome}</h3>
             <button onClick={gerarRelatorio} disabled={gerandoRel} style={btnAccent}>
               {gerandoRel ? 'A gerar...' : '+ Gerar relatório'}
             </button>
           </div>
 
           {relAtivosPerfil.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', border: '1px dashed #2a2a2a', borderRadius: 12, color: '#888' }}>
+            <div style={{ textAlign: 'center', padding: '60px 20px', border: '1px dashed var(--border)', borderRadius: 12, color: 'var(--muted)' }}>
               <p style={{ fontSize: 32 }}>📋</p>
               <p>Nenhum relatório ainda. Clique em &quot;Gerar relatório&quot; para criar o primeiro.</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {relAtivosPerfil.map(r => (
-                <div key={r.id} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ background: '#ffffff05', padding: '12px 20px', borderBottom: '1px solid #2a2a2a', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 600, color: '#f0f0f0' }}>
+                <div key={r.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ background: 'var(--hover-soft)', padding: '12px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
                       Relatório {r.mes}/{r.ano}
                     </span>
-                    <span style={{ color: '#888', fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString('pt-PT')}</span>
+                    <span style={{ color: 'var(--muted)', fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString('pt-PT')}</span>
                   </div>
                   <div style={{ padding: 20 }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', color: '#c8c8c8', fontSize: 14, lineHeight: 1.7, fontFamily: 'DM Sans, sans-serif', margin: 0 }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', color: 'var(--text-2)', fontSize: 14, lineHeight: 1.7, fontFamily: 'DM Sans, sans-serif', margin: 0 }}>
                       {r.conteudo}
                     </pre>
                     {r.recomendacoes?.length > 0 && (
-                      <div style={{ marginTop: 16, background: '#0f0f0f', borderRadius: 8, padding: 14 }}>
+                      <div style={{ marginTop: 16, background: 'var(--bg)', borderRadius: 8, padding: 14 }}>
                         <p style={{ color: perfilInfo.cor, fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>✅ Recomendações</p>
                         <ul style={{ margin: 0, paddingLeft: 20 }}>
                           {r.recomendacoes.map((rec: string, i: number) => (
-                            <li key={i} style={{ color: '#c8c8c8', fontSize: 13, lineHeight: 1.6 }}>{rec}</li>
+                            <li key={i} style={{ color: 'var(--text-2)', fontSize: 13, lineHeight: 1.6 }}>{rec}</li>
                           ))}
                         </ul>
                       </div>
@@ -308,14 +310,14 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
 }
 
 const btnStyle = {
-  background: 'transparent', border: '1px solid #2a2a2a', color: '#888',
+  background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)',
   borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer',
 }
 const btnAccent = {
-  background: '#c9f06a', color: '#0f0f0f', border: 'none',
+  background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
   borderRadius: 8, padding: '8px 18px', fontWeight: 600, cursor: 'pointer', fontSize: 13,
 }
 const tabBtn = {
-  border: '1px solid #2a2a2a', borderRadius: 8, padding: '6px 14px',
+  border: '1px solid var(--border)', borderRadius: 8, padding: '6px 14px',
   fontSize: 13, cursor: 'pointer', fontWeight: 500,
 }

@@ -80,16 +80,16 @@ export default function TabFaturacao({ empresaId, faturacao, setFaturacao, curre
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: '#f0f0f0', margin: 0 }}>
+          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: 'var(--text)', margin: 0 }}>
             Faturação mensal
           </h2>
-          <p style={{ color: '#888', fontSize: 14, marginTop: 4 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
             Registe a faturação e IVA cobrado mensalmente
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => setYear(y => y - 1)} style={{ ...btnStyle }}>←</button>
-          <span style={{ color: '#f0f0f0', fontWeight: 600, minWidth: 50, textAlign: 'center' }}>{year}</span>
+          <span style={{ color: 'var(--text)', fontWeight: 600, minWidth: 50, textAlign: 'center' }}>{year}</span>
           <button onClick={() => setYear(y => y + 1)} style={{ ...btnStyle }}>→</button>
         </div>
       </div>
@@ -101,41 +101,41 @@ export default function TabFaturacao({ empresaId, faturacao, setFaturacao, curre
           { label: 'Total IVA cobrado', value: formatCurrency(totalIVA) },
           { label: 'Média mensal', value: formatCurrency(mediaM) },
         ].map(k => (
-          <div key={k.label} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 10, padding: '14px 18px' }}>
-            <p style={{ color: '#888', fontSize: 12, margin: '0 0 4px' }}>{k.label}</p>
-            <p style={{ color: '#c9f06a', fontSize: 20, fontWeight: 600, margin: 0 }}>{k.value}</p>
+          <div key={k.label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px' }}>
+            <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 4px' }}>{k.label}</p>
+            <p style={{ color: 'var(--accent)', fontSize: 20, fontWeight: 600, margin: 0 }}>{k.value}</p>
           </div>
         ))}
       </div>
 
       {/* Gráfico */}
-      <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <h3 style={{ color: '#f0f0f0', fontSize: 15, fontWeight: 600, marginTop: 0, marginBottom: 16 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+        <h3 style={{ color: 'var(--text)', fontSize: 15, fontWeight: 600, marginTop: 0, marginBottom: 16 }}>
           Evolução mensal {year}
         </h3>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-            <XAxis dataKey="mes" tick={{ fill: '#888', fontSize: 12 }} />
-            <YAxis tick={{ fill: '#888', fontSize: 11 }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <XAxis dataKey="mes" tick={{ fill: 'var(--muted)', fontSize: 12 }} />
+            <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => `${(v/1000).toFixed(0)}k`} />
             <Tooltip
               formatter={(v: number) => formatCurrency(v)}
-              contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8 }}
-              labelStyle={{ color: '#f0f0f0' }}
+              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
+              labelStyle={{ color: 'var(--text)' }}
             />
-            <Bar dataKey="faturacao" name="Faturação" fill="#c9f06a" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="iva" name="IVA" fill="#60a5fa" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="faturacao" name="Faturação" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="iva" name="IVA" fill="var(--info)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Tabela mensal */}
-      <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid #2a2a2a' }}>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
               {['Mês', 'Faturação (€)', 'IVA cobrado (€)', 'Notas', ''].map(h => (
-                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: '#888', fontWeight: 500 }}>{h}</th>
+                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 12, color: 'var(--muted)', fontWeight: 500 }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -144,27 +144,27 @@ export default function TabFaturacao({ empresaId, faturacao, setFaturacao, curre
               const r = getRegistoMes(m.num)
               const isEditing = editingMes === m.num
               return (
-                <tr key={m.num} style={{ borderBottom: '1px solid #1f1f1f' }}>
-                  <td style={{ padding: '10px 16px', color: '#f0f0f0', fontWeight: 500 }}>{m.nome}</td>
+                <tr key={m.num} style={{ borderBottom: '1px solid var(--border-soft)' }}>
+                  <td style={{ padding: '10px 16px', color: 'var(--text)', fontWeight: 500 }}>{m.nome}</td>
                   <td style={{ padding: '10px 16px' }}>
                     {isEditing ? (
                       <input type="number" value={editValues.valor_faturado} onChange={e => setEditValues({ ...editValues, valor_faturado: e.target.value })} style={{ width: 130 }} placeholder="0.00" step="0.01" />
                     ) : (
-                      <span style={{ color: r ? '#c9f06a' : '#444' }}>{r ? formatCurrency(r.valor_faturado) : '—'}</span>
+                      <span style={{ color: r ? 'var(--accent)' : 'var(--faint)' }}>{r ? formatCurrency(r.valor_faturado) : '—'}</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 16px' }}>
                     {isEditing ? (
                       <input type="number" value={editValues.valor_iva_cobrado} onChange={e => setEditValues({ ...editValues, valor_iva_cobrado: e.target.value })} style={{ width: 130 }} placeholder="0.00" step="0.01" />
                     ) : (
-                      <span style={{ color: r ? '#60a5fa' : '#444' }}>{r ? formatCurrency(r.valor_iva_cobrado) : '—'}</span>
+                      <span style={{ color: r ? 'var(--info)' : 'var(--faint)' }}>{r ? formatCurrency(r.valor_iva_cobrado) : '—'}</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 16px' }}>
                     {isEditing ? (
                       <input value={editValues.notas} onChange={e => setEditValues({ ...editValues, notas: e.target.value })} placeholder="Opcional" />
                     ) : (
-                      <span style={{ color: '#888', fontSize: 13 }}>{r?.notas || ''}</span>
+                      <span style={{ color: 'var(--muted)', fontSize: 13 }}>{r?.notas || ''}</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 16px', textAlign: 'right' }}>
@@ -190,10 +190,10 @@ export default function TabFaturacao({ empresaId, faturacao, setFaturacao, curre
 }
 
 const btnStyle = {
-  background: 'transparent', border: '1px solid #2a2a2a', color: '#888',
+  background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)',
   borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer',
 }
 const btnAccent = {
-  background: '#c9f06a', color: '#0f0f0f', border: 'none',
+  background: 'var(--accent)', color: 'var(--on-accent)', border: 'none',
   borderRadius: 8, padding: '6px 12px', fontWeight: 600, cursor: 'pointer',
 }

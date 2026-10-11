@@ -39,13 +39,13 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0f0f' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: '#f0f0f0', marginBottom: 8 }}>
+          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 24, color: 'var(--text)', marginBottom: 8 }}>
             Conta criada!
           </h2>
-          <p style={{ color: '#888', fontSize: 14 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14 }}>
             Verifique o seu email para confirmar a conta. A redirecionar...
           </p>
         </div>
@@ -54,23 +54,23 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0f0f0f' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <h1 className="text-3xl mb-1" style={{ fontFamily: 'DM Serif Display, serif', color: '#f0f0f0' }}>
+          <h1 className="text-3xl mb-1" style={{ fontFamily: 'DM Serif Display, serif', color: 'var(--text)' }}>
             FinAdvisor
           </h1>
-          <p style={{ color: '#888', fontSize: 14 }}>Gestão financeira inteligente</p>
+          <p style={{ color: 'var(--muted)', fontSize: 14 }}>Gestão financeira inteligente</p>
         </div>
 
-        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 16, padding: 32 }}>
-          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 22, marginBottom: 24, color: '#f0f0f0' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 32 }}>
+          <h2 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 22, marginBottom: 24, color: 'var(--text)' }}>
             Criar conta
           </h2>
 
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: '#888', marginBottom: 6 }}>Email</label>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>Email</label>
               <input
                 type="email"
                 value={email}
@@ -81,7 +81,7 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: '#888', marginBottom: 6 }}>Password</label>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>Password</label>
               <input
                 type="password"
                 value={password}
@@ -92,7 +92,7 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <p style={{ color: '#ef4444', fontSize: 13, padding: '8px 12px', background: '#ef444410', borderRadius: 8 }}>
+              <p style={{ color: 'var(--negative)', fontSize: 13, padding: '8px 12px', background: 'var(--negative-soft)', borderRadius: 8 }}>
                 {error}
               </p>
             )}
@@ -101,8 +101,8 @@ export default function RegisterPage() {
               type="submit"
               disabled={loading}
               style={{
-                background: loading ? '#555' : '#c9f06a',
-                color: '#0f0f0f',
+                background: loading ? 'var(--faint)' : 'var(--accent)',
+                color: 'var(--on-accent)',
                 border: 'none',
                 borderRadius: 10,
                 padding: '12px 24px',
@@ -116,9 +116,9 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: '#888' }}>
+          <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
             Já tem conta?{' '}
-            <Link href="/login" style={{ color: '#c9f06a', textDecoration: 'none' }}>
+            <Link href="/login" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
               Entrar
             </Link>
           </p>

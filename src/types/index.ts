@@ -104,3 +104,31 @@ export interface IndicadoresFinanceiros {
   resultadoLiquido: number
   margemLiquida: number
 }
+
+export interface DadosAnuais {
+  id: string
+  empresa_id: string
+  ano: number
+  volume_negocios: number
+  cmvmc: number
+  fse: number
+  gastos_pessoal: number
+  outros_gastos: number
+  ebitda: number
+  juros: number
+  resultado_antes_impostos: number
+  irc: number
+  resultado_liquido: number
+  ativo_corrente: number
+  caixa: number
+  inventarios: number
+  ativo_total: number
+  passivo_corrente: number
+  passivo_total: number
+  capital_proprio: number
+  divida_financeira: number
+  fonte?: string
+  created_at: string
+}
+
+export type DadosAnuaisInput = Omit<DadosAnuais, 'id' | 'empresa_id' | 'created_at'>

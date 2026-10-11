@@ -4,13 +4,29 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --border: #2a2a2a;
-  --accent: #c9f06a;
-  --accent-dim: #a8d04a;
-  --muted: #888888;
-  --text: #f0f0f0;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e3e6ea;
+  --border-soft: #eef0f3;
+  --text: #1a1d21;
+  --text-2: #374151;
+  --muted: #6b7280;
+  --faint: #9ca3af;
+  --accent: #3f7d20;
+  --accent-dim: #2f6118;
+  --accent-soft: #e8f1e1;
+  --on-accent: #ffffff;
+  --positive: #15803d;
+  --positive-border: #bbf7d0;
+  --negative: #dc2626;
+  --negative-soft: #fef2f2;
+  --negative-border: #fecaca;
+  --warning: #d97706;
+  --info: #2563eb;
+  --hover-soft: #f9fafb;
+  --hover: #f3f4f6;
+  --hover-strong: #eceef1;
+  color-scheme: light;
 }
 
 * {
@@ -83,15 +99,15 @@ select option {
 /* Recharts custom */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
-  stroke: #2a2a2a;
+  stroke: var(--border);
 }
 .recharts-text {
-  fill: #888888;
+  fill: var(--muted);
   font-size: 12px;
   font-family: 'DM Sans', sans-serif;
 }
 .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background: #1a1a1a !important;
-  border: 1px solid #2a2a2a !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px !important;
 }

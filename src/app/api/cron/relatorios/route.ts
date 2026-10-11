@@ -15,7 +15,8 @@ export async function GET(req: Request) {
 
   const supabase = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    // A service role key ignora o RLS (necessário para ler as empresas de todos os utilizadores)
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -32,10 +33,11 @@ export async function GET(req: Request) {
   for (const empresa of empresas) {
     try {
       // Buscar dados da empresa
-      const [{ data: faturacao }, { data: despesas }, { data: obrigacoes }] = await Promise.all([
+      const [{ data: faturacao }, { data: despesas }, { data: obrigacoes }, { data: dadosAnuais }] = await Promise.all([
         supabase.from('faturacao_mensal').select('*').eq('empresa_id', empresa.id),
         supabase.from('despesas').select('*').eq('empresa_id', empresa.id),
         supabase.from('obrigacoes_fiscais').select('*').eq('empresa_id', empresa.id).eq('estado', 'pendente'),
+        supabase.from('dados_anuais').select('*').eq('empresa_id', empresa.id),
       ])
 
       const currentYear = ano
@@ -58,6 +60,7 @@ export async function GET(req: Request) {
         ivaEstimado: ivaEst,
         ircEstimado: ircEst,
         obrigacoesPendentes: obrigPend,
+        dadosAnuais: dadosAnuais || [],
       })
 
       // Gerar relatório para cada perfil
