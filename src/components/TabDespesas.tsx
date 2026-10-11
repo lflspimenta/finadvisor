@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Despesa } from '@/types'
 import { formatCurrency, getMesNome } from '@/lib/fiscal'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import AdicionarFaturas from '@/components/AdicionarFaturas'
+import { CATEGORIAS_DESPESA, ivaDedutivel } from '@/lib/faturas'
+import { abrirFatura, apagarFicheiroFatura } from '@/lib/storage-faturas'
 
 interface Props {
   empresaId: string
@@ -13,17 +16,14 @@ interface Props {
   currentYear: number
 }
 
-const CATEGORIAS = [
-  'Fornecedores', 'Salários', 'Rendas', 'Comunicações',
-  'Combustível', 'Manutenção', 'Marketing', 'Software',
-  'Contabilidade', 'Seguros', 'Outros',
-]
+const CATEGORIAS = CATEGORIAS_DESPESA
 
 const CORES = ['#3f7d20', '#2563eb', '#d97706', '#0d9488', '#dc2626', '#7c3aed', '#ea580c', '#0284c7', '#65a30d', '#ca8a04', '#c026d3']
 
 export default function TabDespesas({ empresaId, despesas, setDespesas, currentYear }: Props) {
   const [year, setYear] = useState(currentYear)
   const [showForm, setShowForm] = useState(false)
+  const [showFaturas, setShowFaturas] = useState(false)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     mes: new Date().getMonth() + 1,
@@ -36,6 +36,7 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
 
   const despAno = despesas.filter(d => d.ano === year)
   const totalAno = despAno.reduce((s, d) => s + d.valor, 0)
+  const ivaDedutivelAno = despAno.reduce((s, d) => s + ivaDedutivel(d), 0)
 
   // Por categoria para gráfico
   const porCategoria = CATEGORIAS
@@ -65,9 +66,12 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
     setLoading(false)
   }
 
-  async function deleteDespesa(id: string) {
-    await supabase.from('despesas').delete().eq('id', id)
-    setDespesas(despesas.filter(d => d.id !== id))
+  async function deleteDespesa(d: Despesa) {
+    if (d.ficheiro_path && !confirm('Apagar esta despesa e a fatura digitalizada?')) return
+    const { error } = await supabase.from('despesas').delete().eq('id', d.id)
+    if (error) { alert('Erro ao apagar: ' + error.message); return }
+    await apagarFicheiroFatura(d.ficheiro_path)
+    setDespesas(despesas.filter(x => x.id !== d.id))
   }
 
   return (
@@ -83,6 +87,7 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
             <span style={{ color: 'var(--text)', fontWeight: 600, minWidth: 50, textAlign: 'center', lineHeight: '34px' }}>{year}</span>
             <button onClick={() => setYear(y => y + 1)} style={btnStyle}>→</button>
           </div>
+          <button onClick={() => setShowFaturas(true)} style={{ ...btnStyle, color: 'var(--text-2)', padding: '8px 14px' }}>🧾 Adicionar faturas</button>
           <button onClick={() => setShowForm(true)} style={btnAccent}>+ Adicionar</button>
         </div>
       </div>
@@ -95,10 +100,18 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
             <p style={{ color: 'var(--negative)', fontSize: 24, fontWeight: 600, margin: 0 }}>{formatCurrency(totalAno)}</p>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 18px' }}>
-            <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 4px' }}>Média mensal</p>
-            <p style={{ color: 'var(--negative)', fontSize: 20, fontWeight: 600, margin: 0 }}>
-              {formatCurrency(despAno.length > 0 ? totalAno / 12 : 0)}
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 4px' }}>Média mensal</p>
+                <p style={{ color: 'var(--negative)', fontSize: 20, fontWeight: 600, margin: 0 }}>
+                  {formatCurrency(despAno.length > 0 ? totalAno / 12 : 0)}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: 'var(--muted)', fontSize: 12, margin: '0 0 4px' }}>IVA dedutível {year}</p>
+                <p style={{ color: 'var(--info)', fontSize: 20, fontWeight: 600, margin: 0 }}>{formatCurrency(ivaDedutivelAno)}</p>
+              </div>
+            </div>
           </div>
         </div>
         {/* Gráfico categorias */}
@@ -119,6 +132,16 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
           )}
         </div>
       </div>
+
+      {showFaturas && (
+        <AdicionarFaturas
+          tipo="compra"
+          empresaId={empresaId}
+          despesas={despesas}
+          onClose={() => setShowFaturas(false)}
+          onDespesas={novas => setDespesas([...despesas, ...novas])}
+        />
+      )}
 
       {/* Modal adicionar */}
       {showForm && (
@@ -188,10 +211,25 @@ export default function TabDespesas({ empresaId, despesas, setDespesas, currentY
                   <td style={{ padding: '10px 16px', color: 'var(--text)', fontSize: 14 }}>
                     {d.descricao}
                     {d.recorrente && <span style={{ marginLeft: 6, color: 'var(--info)', fontSize: 11 }}>↻</span>}
+                    {(d.numero_documento || d.data_documento) && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+                        {[d.numero_documento, d.data_documento && new Date(d.data_documento).toLocaleDateString('pt-PT'), d.fornecedor_nif && `NIF ${d.fornecedor_nif}`].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                   </td>
-                  <td style={{ padding: '10px 16px', color: 'var(--negative)', fontWeight: 500 }}>{formatCurrency(d.valor)}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>
-                    <button onClick={() => deleteDespesa(d.id)} style={{ ...btnStyle, color: 'var(--negative)', borderColor: 'var(--negative-border)', fontSize: 12 }}>✕</button>
+                  <td style={{ padding: '10px 16px', color: 'var(--negative)', fontWeight: 500 }}>
+                    {formatCurrency(d.valor)}
+                    {Number(d.valor_iva) !== 0 && d.valor_iva != null && (
+                      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 400 }}>
+                        IVA {formatCurrency(Number(d.valor_iva))}{Number(d.deducao_iva ?? 1) < 1 ? ` (${Number(d.deducao_iva) === 0 ? 'não dedutível' : '50% dedutível'})` : ''}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {d.ficheiro_path && (
+                      <button onClick={() => abrirFatura(d.ficheiro_path!)} title="Ver fatura" style={{ ...btnStyle, fontSize: 12, marginRight: 6 }}>📎</button>
+                    )}
+                    <button onClick={() => deleteDespesa(d)} style={{ ...btnStyle, color: 'var(--negative)', borderColor: 'var(--negative-border)', fontSize: 12 }}>✕</button>
                   </td>
                 </tr>
               ))

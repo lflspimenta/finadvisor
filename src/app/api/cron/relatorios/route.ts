@@ -1,7 +1,8 @@
 import { criarClienteAnthropic } from '@/lib/anthropic'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { getSystemPrompt } from '@/lib/ai-profiles'
-import { PerfilContabilista } from '@/types'
+import { PerfilContabilista, Despesa } from '@/types'
+import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
 import { gerarContextoEmpresa } from '@/lib/ai-profiles'
 import { calcularIRC, calcularSS } from '@/lib/fiscal'
 
@@ -43,11 +44,12 @@ export async function GET(req: Request) {
       const currentYear = ano
       const fatAno = (faturacao || []).filter((f: { ano: number }) => f.ano === currentYear)
       const totalFat = fatAno.reduce((s: number, f: { valor_faturado: number }) => s + f.valor_faturado, 0)
-      const totalDesp = (despesas || []).filter((d: { ano: number }) => d.ano === currentYear).reduce((s: number, d: { valor: number }) => s + d.valor, 0)
+      const despAno = (despesas || []).filter((d: Despesa) => d.ano === currentYear)
+      const totalDesp = despAno.reduce((s: number, d: Despesa) => s + custoDespesa(d), 0)
       const faturacaoMensal = fatAno.length > 0 ? totalFat / fatAno.length : 0
       const ssMensal = calcularSS(empresa.remuneracao_socio_mensal, 1)
       const lucro = Math.max(0, totalFat - totalDesp)
-      const ivaEst = fatAno.reduce((s: number, f: { valor_iva_cobrado: number }) => s + f.valor_iva_cobrado, 0)
+      const ivaEst = Math.max(0, fatAno.reduce((s: number, f: { valor_iva_cobrado: number }) => s + f.valor_iva_cobrado, 0) - despAno.reduce((s: number, d: Despesa) => s + ivaDedutivel(d), 0))
       const ircEst = calcularIRC(lucro)
       const obrigPend = (obrigacoes || []).reduce((s: number, o: { valor_estimado: number }) => s + o.valor_estimado, 0)
 

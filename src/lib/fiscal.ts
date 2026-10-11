@@ -1,5 +1,6 @@
 import { FaturacaoMensal, Despesa, ObrigacaoFiscal, ProjecaoCashflow, Empresa, DadosAnuais } from '@/types'
 import { addMonths, format, getMonth, getYear } from 'date-fns'
+import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
 
 // Taxas fiscais Portugal 2025/2026
 export const TAXAS = {
@@ -35,10 +36,12 @@ export function calcularSS(remuneracaoMensal: number, meses: number = 12): numbe
   return remuneracaoMensal * TAXAS.SS_GERENTE * meses
 }
 
+/** IVA a entregar no trimestre = IVA cobrado − IVA dedutível das faturas de compra (mínimo 0; o excesso é crédito a reportar). */
 export function calcularIVATrimestral(
   faturacao: FaturacaoMensal[],
   trimestre: number,
-  ano: number
+  ano: number,
+  despesas: Despesa[] = []
 ): number {
   const mesesTrimestre = [
     [1, 2, 3],
@@ -47,9 +50,13 @@ export function calcularIVATrimestral(
     [10, 11, 12],
   ][trimestre - 1]
 
-  return faturacao
+  const cobrado = faturacao
     .filter(f => f.ano === ano && mesesTrimestre.includes(f.mes))
-    .reduce((sum, f) => sum + f.valor_iva_cobrado, 0)
+    .reduce((sum, f) => sum + Number(f.valor_iva_cobrado), 0)
+  const dedutivel = despesas
+    .filter(d => d.ano === ano && mesesTrimestre.includes(d.mes))
+    .reduce((sum, d) => sum + ivaDedutivel(d), 0)
+  return Math.max(0, Math.round((cobrado - dedutivel) * 100) / 100)
 }
 
 /**
@@ -72,7 +79,7 @@ export function ircDoExercicio(
   const fat = faturacao.filter(f => f.ano === ano)
   if (fat.length === 0) return null
   const volume = fat.reduce((s, f) => s + Number(f.valor_faturado), 0)
-  const gastos = despesas.filter(d => d.ano === ano).reduce((s, d) => s + Number(d.valor), 0)
+  const gastos = despesas.filter(d => d.ano === ano).reduce((s, d) => s + custoDespesa(d), 0)
   const lucro = Math.max(0, volume - gastos - calcularSS(empresa.remuneracao_socio_mensal))
   return { irc: calcularIRC(lucro, ano), volume }
 }
@@ -102,7 +109,7 @@ export function gerarObrigacoesFiscais(
     ]
 
     for (const d of datasLimiteIVA) {
-      const valorIVA = calcularIVATrimestral(faturacao, d.trimestre, ano)
+      const valorIVA = calcularIVATrimestral(faturacao, d.trimestre, ano, despesas)
       obrigacoes.push({
         tipo: 'IVA',
         ano,
@@ -256,4 +263,13 @@ export function getTipoObrigacaoLabel(tipo: string): string {
     PPC: 'Pagamento por Conta',
   }
   return labels[tipo] || tipo
+}
+
+/** Etiquetas do eixo Y: 750 → "750", 12 500 → "12,5k", 1 200 000 → "1,2M". */
+export function eixoEuros(v: number): string {
+  const a = Math.abs(v)
+  const f = (x: number) => x.toLocaleString('pt-PT', { maximumFractionDigits: 1 })
+  if (a >= 1_000_000) return `${f(v / 1_000_000)}M`
+  if (a >= 1000) return `${f(v / 1000)}k`
+  return f(v)
 }

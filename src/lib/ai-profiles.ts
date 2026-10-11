@@ -105,7 +105,7 @@ Faturação anual acumulada: ${dados.faturacaoTotal.toFixed(2)} €
 Faturação média mensal: ${dados.faturacaoMensal.toFixed(2)} €
 Despesas totais: ${dados.despesasTotal.toFixed(2)} €
 SS mensal do sócio: ${dados.ssMensal.toFixed(2)} €
-IVA estimado: ${dados.ivaEstimado.toFixed(2)} €
+IVA a entregar estimado (cobrado − dedutível): ${dados.ivaEstimado.toFixed(2)} €
 IRC estimado: ${dados.ircEstimado.toFixed(2)} €
 Obrigações fiscais pendentes: ${dados.obrigacoesPendentes.toFixed(2)} €${blocoAnual}`
 }

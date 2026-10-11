@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, RelatorioIA, PerfilContabilista, DadosAnuais } from '@/types'
 import { PERFIS, gerarContextoEmpresa } from '@/lib/ai-profiles'
 import { calcularIRC, calcularSS, TAXAS, formatCurrency } from '@/lib/fiscal'
+import { custoDespesa, ivaDedutivel } from '@/lib/faturas'
 
 interface Props {
   empresa: Empresa
@@ -39,11 +40,11 @@ export default function TabIA({ empresa, faturacao, despesas, obrigacoes, relato
   const currentYear = new Date().getFullYear()
   const fatAno = faturacao.filter(f => f.ano === currentYear)
   const totalFat = fatAno.reduce((s, f) => s + f.valor_faturado, 0)
-  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + d.valor, 0)
+  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + custoDespesa(d), 0)
   const faturacaoMensal = fatAno.length > 0 ? totalFat / fatAno.length : 0
   const ssMensal = calcularSS(empresa.remuneracao_socio_mensal, 1)
   const lucro = Math.max(0, totalFat - totalDesp - calcularSS(empresa.remuneracao_socio_mensal))
-  const ivaEst = fatAno.reduce((s, f) => s + f.valor_iva_cobrado, 0)
+  const ivaEst = Math.max(0, fatAno.reduce((s, f) => s + f.valor_iva_cobrado, 0) - despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + ivaDedutivel(d), 0))
   const ircEst = calcularIRC(lucro)
   const obrigPend = obrigacoes.filter(o => o.estado === 'pendente').reduce((s, o) => s + o.valor_estimado, 0)
 

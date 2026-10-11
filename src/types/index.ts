@@ -33,6 +33,16 @@ export interface Despesa {
   valor: number
   recorrente: boolean
   created_at: string
+  // Dados da fatura (opcionais — só em despesas registadas a partir de faturas)
+  fornecedor_nome?: string | null
+  fornecedor_nif?: string | null
+  numero_documento?: string | null
+  data_documento?: string | null
+  atcud?: string | null
+  valor_base?: number | null
+  valor_iva?: number | null
+  deducao_iva?: number | null
+  ficheiro_path?: string | null
 }
 
 export interface ObrigacaoFiscal {
@@ -132,3 +142,20 @@ export interface DadosAnuais {
 }
 
 export type DadosAnuaisInput = Omit<DadosAnuais, 'id' | 'empresa_id' | 'created_at'>
+
+export interface FaturaVenda {
+  id: string
+  empresa_id: string
+  ano: number
+  mes: number
+  cliente_nome: string | null
+  cliente_nif: string | null
+  numero_documento: string | null
+  data_documento: string | null
+  atcud: string | null
+  valor_base: number
+  valor_iva: number
+  valor_total: number
+  ficheiro_path: string | null
+  created_at: string
+}

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, SaldoCaixa, RelatorioIA, DadosAnuais } from '@/types'
+import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal, SaldoCaixa, RelatorioIA, DadosAnuais, FaturaVenda } from '@/types'
 import { MARCA_IMPORTADO } from '@/lib/importacao'
+import { custoDespesa } from '@/lib/faturas'
 import ImportarContasAnuais from '@/components/ImportarContasAnuais'
 import Link from 'next/link'
 import TabFaturacao from '@/components/TabFaturacao'
@@ -20,6 +21,7 @@ interface Props {
   saldos: SaldoCaixa[]
   relatorios: RelatorioIA[]
   dadosAnuais: DadosAnuais[]
+  faturasVenda: FaturaVenda[]
   currentYear: number
 }
 
@@ -33,7 +35,7 @@ const TABS = [
 
 export default function EmpresaClient({
   empresa, userId, faturacao: initialFat, despesas: initialDesp,
-  obrigacoes: initialObrig, saldos: initialSaldos, relatorios: initialRel, dadosAnuais: initialAnuais, currentYear
+  obrigacoes: initialObrig, saldos: initialSaldos, relatorios: initialRel, dadosAnuais: initialAnuais, faturasVenda: initialVendas, currentYear
 }: Props) {
   const [activeTab, setActiveTab] = useState('faturacao')
   const [faturacao, setFaturacao] = useState(initialFat)
@@ -41,6 +43,7 @@ export default function EmpresaClient({
   const [obrigacoes, setObrigacoes] = useState(initialObrig)
   const [relatorios, setRelatorios] = useState(initialRel)
   const [dadosAnuais, setDadosAnuais] = useState(initialAnuais)
+  const [faturasVenda, setFaturasVenda] = useState(initialVendas)
   const [, setSaldos] = useState<SaldoCaixa[]>(initialSaldos)
   const [importarAberto, setImportarAberto] = useState(false)
   const [avisoImport, setAvisoImport] = useState('')
@@ -57,12 +60,12 @@ export default function EmpresaClient({
   // Indicadores resumo
   const fatAno = faturacao.filter(f => f.ano === currentYear)
   const totalFat = fatAno.reduce((s, f) => s + f.valor_faturado, 0)
-  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + d.valor, 0)
+  const totalDesp = despesas.filter(d => d.ano === currentYear).reduce((s, d) => s + custoDespesa(d), 0)
   const obrigPendentes = obrigacoes.filter(o => o.estado === 'pendente').reduce((s, o) => s + o.valor_estimado, 0)
   const lucroEst = Math.max(0, totalFat - totalDesp)
 
   function fmt(v: number) {
-    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0 }).format(v)
+    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)
   }
 
   return (
@@ -120,7 +123,7 @@ export default function EmpresaClient({
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
           {[
             { label: `Faturação ${currentYear}`, value: fmt(totalFat), color: 'var(--accent)' },
-            { label: 'Despesas totais', value: fmt(totalDesp), color: 'var(--warning)' },
+            { label: `Despesas ${currentYear} (sem IVA dedutível)`, value: fmt(totalDesp), color: 'var(--warning)' },
             { label: 'Resultado estimado', value: fmt(lucroEst), color: lucroEst > 0 ? 'var(--positive)' : 'var(--negative)' },
             { label: 'Obrigações pendentes', value: fmt(obrigPendentes), color: 'var(--negative)' },
           ].map(kpi => (
@@ -163,6 +166,8 @@ export default function EmpresaClient({
             empresaId={empresa.id}
             faturacao={faturacao}
             setFaturacao={setFaturacao}
+            faturasVenda={faturasVenda}
+            setFaturasVenda={setFaturasVenda}
             currentYear={currentYear}
           />
         )}

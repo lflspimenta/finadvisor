@@ -2,6 +2,7 @@
 
 import { Empresa, FaturacaoMensal, Despesa, ObrigacaoFiscal } from '@/types'
 import { calcularProjecaoCashflow, formatCurrency } from '@/lib/fiscal'
+import { eixoEuros } from '@/lib/fiscal'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Legend,
@@ -66,7 +67,7 @@ export default function TabCashflow({ empresa, faturacao, despesas, obrigacoes }
           <ComposedChart data={chartData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="mes" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+            <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={eixoEuros} />
             <Tooltip
               formatter={(v: number, name: string) => [formatCurrency(v), name]}
               contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
@@ -91,7 +92,7 @@ export default function TabCashflow({ empresa, faturacao, despesas, obrigacoes }
           <ComposedChart data={chartData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis dataKey="mes" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
-            <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+            <YAxis tick={{ fill: 'var(--muted)', fontSize: 11 }} tickFormatter={eixoEuros} />
             <Tooltip
               formatter={(v: number) => [formatCurrency(v), 'Saldo acumulado']}
               contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
